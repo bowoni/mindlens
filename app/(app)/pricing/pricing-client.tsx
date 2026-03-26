@@ -226,7 +226,7 @@ export default function PricingClient({
         ))}
       </div>
 
-      <div className="md:grid md:grid-cols-3 md:gap-6 md:items-start space-y-6 md:space-y-0">
+      <div className="md:grid md:grid-cols-3 md:gap-6 space-y-6 md:space-y-0">
         {PLANS.map((plan) => (
           <div
             key={plan.key}
