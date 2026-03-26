@@ -2,6 +2,48 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { LensIcon } from "@/components/logo";
+import type { Metadata } from "next";
+
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://mindlens.app";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+  const supabase = createServiceClient();
+
+  const { data } = await supabase
+    .from("analyses")
+    .select("title, type, content")
+    .eq("share_token", token)
+    .single();
+
+  if (!data) return {};
+
+  const content = data.content as Record<string, unknown>;
+  const title = (content?.title as string) ?? data.title ?? "MindLens 분석";
+  const summary = (content?.summary as string) ?? "";
+  const typeLabel = data.type === "video" ? "영상 분석" : data.type === "comparison" ? "비교 분석" : "문서 분석";
+  const description = summary ? summary.slice(0, 120) : `MindLens ${typeLabel} 결과입니다.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `${baseUrl}/share/${token}`,
+      images: [{ url: `${baseUrl}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 export default async function SharePage({
   params,
