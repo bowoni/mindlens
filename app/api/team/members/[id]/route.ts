@@ -19,7 +19,7 @@ export async function DELETE(
 
   if (!member) return NextResponse.json({ error: "멤버를 찾을 수 없습니다." }, { status: 404 });
 
-  const team = member.teams as { owner_id: string } | null;
+  const team = member.teams as unknown as { owner_id: string } | null;
   if (team?.owner_id !== user.id) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
