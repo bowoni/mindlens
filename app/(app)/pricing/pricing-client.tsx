@@ -236,14 +236,15 @@ export default function PricingClient({
                 : "border-border bg-card"
             } ${plan.key !== activeTab ? "hidden md:flex" : ""}`}
           >
-            {plan.highlight && currentPlan === "free" && (
-              <span className="self-start text-xs font-semibold px-2.5 py-1 rounded-full bg-accent text-white mb-4">
-                추천
-              </span>
-            )}
-
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-foreground">{plan.name}</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-foreground">{plan.name}</h2>
+                {plan.highlight && currentPlan === "free" && (
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-accent text-white">
+                    추천
+                  </span>
+                )}
+              </div>
               <div className="flex items-baseline gap-1 mt-1">
                 <span className="text-3xl font-bold text-foreground">{plan.price}</span>
                 <span className="text-sm text-muted-foreground">{plan.period}</span>
