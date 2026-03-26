@@ -3,10 +3,10 @@
 import { createClient } from "@/lib/supabase/client";
 
 export default function SocialAuthButtons() {
-  async function handleOAuth(provider: "google" | "kakao") {
+  async function handleGoogle() {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
-      provider,
+      provider: "google",
       options: { redirectTo: `${location.origin}/auth/callback` },
     });
   }
@@ -21,7 +21,7 @@ export default function SocialAuthButtons() {
 
       <button
         type="button"
-        onClick={() => handleOAuth("google")}
+        onClick={handleGoogle}
         className="w-full h-10 flex items-center justify-center gap-2.5 rounded-lg border border-border bg-background hover:bg-muted text-foreground text-sm font-medium transition-colors"
       >
         <svg width="18" height="18" viewBox="0 0 24 24">
@@ -31,17 +31,6 @@ export default function SocialAuthButtons() {
           <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
         </svg>
         Google로 계속하기
-      </button>
-
-      <button
-        type="button"
-        onClick={() => handleOAuth("kakao")}
-        className="w-full h-10 flex items-center justify-center gap-2.5 rounded-lg bg-[#FEE500] hover:bg-[#F5DC00] text-[#191919] text-sm font-medium transition-colors"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="#191919">
-          <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.62 5.076 4.08 6.48L5.04 21l4.8-2.88c.69.12 1.41.18 2.16.18 5.523 0 10-3.477 10-7.8S17.523 3 12 3z"/>
-        </svg>
-        카카오로 계속하기
       </button>
     </div>
   );

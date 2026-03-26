@@ -106,7 +106,7 @@
 <br>
 
 > Supabase 기반 인증 및 데이터 관리
-- Supabase Auth를 활용한 이메일 · Google · Kakao OAuth 로그인
+- Supabase Auth를 활용한 이메일 · Google OAuth 로그인
 - RLS(Row Level Security) 정책으로 테이블별 SELECT / INSERT / UPDATE / DELETE 접근 제어
 - Supabase Storage를 통한 원본 문서 파일 보관
 
