@@ -55,15 +55,18 @@ export default async function DashboardPage() {
     teamAddedIds = (ta ?? []).map((r) => r.analysis_id);
   }
 
-  const list = analyses ?? [];
-  const usedCount = usage?.count ?? 0;
-
   const isExpired =
     subscription?.cancel_at_period_end &&
     subscription.current_period_end &&
     new Date(subscription.current_period_end) <= new Date();
   const plan = isExpired ? "free" : (subscription?.plan ?? "free");
   const isFree = plan === "free";
+
+  const sevenDaysAgo = new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const list = (analyses ?? []).filter((a) =>
+    isFree ? a.created_at >= sevenDaysAgo : true
+  );
+  const usedCount = usage?.count ?? 0;
 
   const stats = [
     { label: "전체 분석", value: list.length },

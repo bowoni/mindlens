@@ -29,18 +29,19 @@ export async function fetchTranscript(videoId: string): Promise<string> {
   return items.map((item) => decodeHtmlEntities(item.text)).join(" ");
 }
 
-export async function searchVideos(keyword: string, maxResults = 5) {
+async function fetchByOrder(keyword: string, order: string, maxResults: number) {
   const apiKey = process.env.YOUTUBE_DATA_API_KEY!;
   const params = new URLSearchParams({
     part: "snippet",
     q: keyword,
     type: "video",
+    order,
     maxResults: String(maxResults),
     key: apiKey,
   });
 
   const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`);
-  if (!res.ok) throw new Error("YouTube 검색에 실패했습니다.");
+  if (!res.ok) return [];
 
   const data = await res.json();
   return (data.items ?? []).map((item: Record<string, unknown>) => {
@@ -54,4 +55,21 @@ export async function searchVideos(keyword: string, maxResults = 5) {
       publishedAt: snippet.publishedAt as string,
     };
   });
+}
+
+export async function searchVideos(keyword: string, maxResults = 5) {
+  const [byRelevance, byViewCount] = await Promise.all([
+    fetchByOrder(keyword, "relevance", maxResults),
+    fetchByOrder(keyword, "viewCount", maxResults),
+  ]);
+
+  const seen = new Set<string>();
+  const results = [];
+  for (const video of [...byRelevance, ...byViewCount]) {
+    if (!seen.has(video.videoId)) {
+      seen.add(video.videoId);
+      results.push(video);
+    }
+  }
+  return results;
 }
