@@ -302,18 +302,18 @@ export default function DashboardGrid({
                 key={f.key}
                 onClick={() => changeFilter(f.key)}
                 title={f.key === "starred" ? "즐겨찾기" : undefined}
-                className={`h-8 px-3 rounded-lg text-xs border transition-colors ${
+                className={`h-8 px-2 sm:px-3 rounded-lg text-xs border transition-colors ${
                   filter === f.key
                     ? "border-accent bg-(--accent-subtle) text-accent font-medium"
                     : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
                 {f.key === "starred" ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill={filter === "starred" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                     </svg>
-                    <span className="text-xs opacity-60">{analyses.filter((a) => a.is_starred).length}</span>
+                    <span className="ml-1.5 text-xs opacity-60">{analyses.filter((a) => a.is_starred).length}</span>
                   </span>
                 ) : (
                   <>
