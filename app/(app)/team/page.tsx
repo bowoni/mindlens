@@ -63,7 +63,7 @@ export default function TeamPage() {
         fetch("/api/team/analyses").then((r) => r.json()),
         fetch("/api/team").then((r) => r.json()),
       ]);
-      setItems(analysesRes.analyses ?? []);
+      setItems((analysesRes.analyses ?? []).filter((i: TeamAnalysis) => i.analyses != null));
       setRole(analysesRes.role);
       setTeamId(analysesRes.teamId);
       setTeamName(teamRes.team?.name ?? null);

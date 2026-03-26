@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { NextRequest, NextResponse } from "next/server";
 
 // GET: 팀 대시보드 분석 목록
@@ -16,7 +17,8 @@ export async function GET() {
 
   if (!membership) return NextResponse.json({ analyses: [], role: null, teamId: null });
 
-  const { data } = await supabase
+  const service = createServiceClient();
+  const { data } = await service
     .from("team_analyses")
     .select("id, analysis_id, added_by, created_at, is_starred, analyses(id, type, title, domain, created_at)")
     .eq("team_id", membership.team_id)
