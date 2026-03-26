@@ -18,7 +18,7 @@ const TYPE_FILTERS = [
   { key: "document", label: "문서" },
   { key: "video", label: "영상" },
   { key: "comparison", label: "비교" },
-  { key: "starred", label: "즐겨찾기" },
+  { key: "starred", label: null },
 ];
 
 const TYPE_LABELS: Record<string, string> = {
@@ -118,7 +118,7 @@ function AnalysisCard({
             {TYPE_ICONS[analysis.type]}
             {TYPE_LABELS[analysis.type] ?? analysis.type}
           </span>
-          <div className={`w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
             selected ? "border-accent bg-accent" : "border-border"
           }`}>
             {selected && (
@@ -182,7 +182,7 @@ function AnalysisCard({
           </button>
         </div>
       </div>
-      <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-2 group-hover:text-accent transition-colors">
+      <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-2 min-h-10 group-hover:text-accent transition-colors">
         {analysis.title}
       </h3>
       <div className="flex items-center justify-between">
@@ -293,80 +293,127 @@ export default function DashboardGrid({
 
   return (
     <div>
-      {/* 필터 탭 + 선택/삭제 버튼 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex gap-1">
-          {TYPE_FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => changeFilter(f.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                filter === f.key
-                  ? "bg-(--accent-subtle) text-accent font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              {f.label}
-              <span className="ml-1.5 text-xs opacity-60">
-                {f.key === "all" ? analyses.length : f.key === "starred" ? analyses.filter((a) => a.is_starred).length : analyses.filter((a) => a.type === f.key).length}
-              </span>
-            </button>
-          ))}
+      {/* 필터 탭 + 선택 버튼 */}
+      <div className="mb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex gap-1 flex-wrap">
+            {TYPE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => changeFilter(f.key)}
+                title={f.key === "starred" ? "즐겨찾기" : undefined}
+                className={`h-8 px-3 rounded-lg text-xs border transition-colors ${
+                  filter === f.key
+                    ? "border-accent bg-(--accent-subtle) text-accent font-medium"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {f.key === "starred" ? (
+                  <span className="flex items-center gap-2">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill={filter === "starred" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                    <span className="text-xs opacity-60">{analyses.filter((a) => a.is_starred).length}</span>
+                  </span>
+                ) : (
+                  <>
+                    {f.label}
+                    <span className="ml-1.5 text-xs opacity-60">
+                      {f.key === "all" ? analyses.length : analyses.filter((a) => a.type === f.key).length}
+                    </span>
+                  </>
+                )}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}
+            className={`h-8 px-3 rounded-lg border text-xs transition-colors shrink-0 ${
+              selectMode
+                ? "border-accent text-accent bg-(--accent-subtle)"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            {selectMode ? "취소" : "선택"}
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {selectMode ? (
-            <>
-              <span className="text-xs text-muted-foreground">{selected.size}개 선택</span>
-              <button
-                onClick={() => handleBulkStar(true)}
-                disabled={selected.size === 0 || isPending}
-                className="h-8 px-3 rounded-lg border border-border text-muted-foreground hover:text-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-xs transition-colors"
-                title="즐겨찾기 추가"
-              >
-                ★
-              </button>
-              <button
-                onClick={() => handleBulkStar(false)}
-                disabled={selected.size === 0 || isPending}
-                className="h-8 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed text-xs transition-colors"
-                title="즐겨찾기 해제"
-              >
-                ☆
-              </button>
-              {canAddToTeam && (
-                <button
-                  onClick={handleBulkAddToTeam}
-                  disabled={selected.size === 0 || isPending}
-                  className="h-8 px-3 rounded-lg border border-border text-muted-foreground hover:text-accent hover:bg-(--accent-subtle) disabled:opacity-40 disabled:cursor-not-allowed text-xs transition-colors"
-                >
-                  팀에 추가
-                </button>
-              )}
-              <button
-                onClick={handleDelete}
-                disabled={selected.size === 0 || isPending}
-                className="h-8 px-3 rounded-lg bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
-              >
-                {isPending ? "처리 중..." : "삭제"}
-              </button>
-              <button
-                onClick={exitSelectMode}
-                className="h-8 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-xs transition-colors"
-              >
-                취소
-              </button>
-            </>
-          ) : (
+        {/* 선택 모드 툴바 */}
+        {selectMode && (
+          <div className="flex items-center justify-end gap-1.5 mt-2 pt-2 border-t border-border">
             <button
-              onClick={() => setSelectMode(true)}
-              className="h-8 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-xs transition-colors"
+              onClick={() => {
+                if (selected.size === filtered.length) {
+                  setSelected(new Set());
+                } else {
+                  setSelected(new Set(filtered.map((a) => a.id)));
+                }
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              title={selected.size === filtered.length ? "전체 해제" : "전체 선택"}
             >
-              선택
+              {selected.size === filtered.length && filtered.length > 0 ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                </svg>
+              )}
             </button>
-          )}
-        </div>
+            <span className="text-xs text-muted-foreground mr-auto -ml-1">{selected.size}개 선택</span>
+            <button
+              onClick={() => handleBulkStar(true)}
+              disabled={selected.size === 0 || isPending}
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-amber-400 disabled:opacity-40 transition-colors"
+              title="즐겨찾기 추가"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => handleBulkStar(false)}
+              disabled={selected.size === 0 || isPending}
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+              title="즐겨찾기 해제"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+            {canAddToTeam && (
+              <button
+                onClick={handleBulkAddToTeam}
+                disabled={selected.size === 0 || isPending}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-accent hover:bg-(--accent-subtle) disabled:opacity-40 transition-colors"
+                title="팀에 추가"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={handleDelete}
+              disabled={selected.size === 0 || isPending}
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 disabled:opacity-40 transition-colors"
+              title="삭제"
+            >
+              {isPending ? (
+                <span className="text-xs">…</span>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              )}
+            </button>
+          </div>
+        )}
       </div>
+      <div className="mb-4" />
 
       {/* 카드 그리드 */}
       {filtered.length === 0 ? (
