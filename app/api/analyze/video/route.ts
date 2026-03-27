@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { analyzeVideo, generateSuggestedQuestions } from "@/lib/gemini";
-import { extractVideoId, fetchTranscript, decodeHtmlEntities } from "@/lib/youtube";
+import { extractVideoId, decodeHtmlEntities } from "@/lib/youtube";
 import { isUsageLimitExceeded } from "@/lib/usage";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -30,17 +30,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "유효한 YouTube URL이 아닙니다." }, { status: 400 });
   }
 
-  let transcript: string;
-  if (providedTranscript) {
-    transcript = providedTranscript;
-  } else {
-    try {
-      transcript = await fetchTranscript(videoId);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      return NextResponse.json({ error: `자막 오류: ${msg}` }, { status: 422 });
-    }
+  if (!providedTranscript) {
+    return NextResponse.json({ error: "자막을 가져올 수 없습니다." }, { status: 422 });
   }
+  const transcript = providedTranscript;
 
   if (!transcript.trim()) {
     return NextResponse.json({ error: "자막 내용이 없습니다." }, { status: 422 });
