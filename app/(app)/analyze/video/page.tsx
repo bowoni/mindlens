@@ -5,11 +5,39 @@ import { useRouter } from "next/navigation";
 import RecentAnalysesSidebar from "@/components/recent-analyses-sidebar";
 
 async function fetchTranscriptClient(videoId: string): Promise<string> {
-  const res = await fetch(`/api/check/caption?videoId=${videoId}`);
-  const data = await res.json();
-  if (!data.available || !data.captionUrl) throw new Error("자막이 없는 영상입니다.");
+  // 브라우저에서 YouTube InnerTube API 직접 호출 (IP 차단 없음)
+  const playerRes = await fetch(
+    "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: { clientName: "WEB", clientVersion: "2.20240101.01.00", hl: "en" },
+        },
+      }),
+    }
+  );
+  if (!playerRes.ok) throw new Error("YouTube 정보를 가져올 수 없습니다.");
 
-  const captionRes = await fetch(data.captionUrl);
+  const playerData = await playerRes.json() as {
+    captions?: {
+      playerCaptionsTracklistRenderer?: {
+        captionTracks?: { languageCode: string; baseUrl: string }[];
+      };
+    };
+  };
+
+  const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  if (tracks.length === 0) throw new Error("자막이 없는 영상입니다.");
+
+  const track =
+    tracks.find((t) => t.languageCode === "ko") ||
+    tracks.find((t) => t.languageCode === "en") ||
+    tracks[0];
+
+  const captionRes = await fetch(`${track.baseUrl}&fmt=json3`);
   if (!captionRes.ok) throw new Error("자막을 가져올 수 없습니다.");
 
   const json = await captionRes.json() as {
