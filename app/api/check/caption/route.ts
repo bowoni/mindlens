@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { fetchTranscript } from "@/lib/youtube";
+import { getCaptionUrl } from "@/lib/youtube";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
   if (!videoId) return NextResponse.json({ error: "videoId가 없습니다." }, { status: 400 });
 
   try {
-    await fetchTranscript(videoId);
-    return NextResponse.json({ available: true });
+    const captionUrl = await getCaptionUrl(videoId);
+    return NextResponse.json({ available: true, captionUrl });
   } catch {
-    return NextResponse.json({ available: false });
+    return NextResponse.json({ available: false, captionUrl: null });
   }
 }

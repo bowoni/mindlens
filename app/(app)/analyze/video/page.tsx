@@ -4,6 +4,28 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import RecentAnalysesSidebar from "@/components/recent-analyses-sidebar";
 
+async function fetchTranscriptClient(videoId: string): Promise<string> {
+  const res = await fetch(`/api/check/caption?videoId=${videoId}`);
+  const data = await res.json();
+  if (!data.available || !data.captionUrl) throw new Error("자막이 없는 영상입니다.");
+
+  const captionRes = await fetch(data.captionUrl);
+  if (!captionRes.ok) throw new Error("자막을 가져올 수 없습니다.");
+
+  const json = await captionRes.json() as {
+    events?: { segs?: { utf8?: string }[] }[];
+  };
+
+  const text = (json.events ?? [])
+    .flatMap((e) => e.segs ?? [])
+    .map((s) => (s.utf8 ?? "").replace(/\n/g, " "))
+    .join(" ")
+    .trim();
+
+  if (!text) throw new Error("자막 내용이 없습니다.");
+  return text;
+}
+
 type Video = {
   videoId: string;
   title: string;
@@ -91,10 +113,19 @@ function UrlTab({ router }: { router: ReturnType<typeof useRouter> }) {
     setLoading(true);
     setError(null);
 
+    let transcript: string;
+    try {
+      transcript = await fetchTranscriptClient(extractVideoId(url) ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "자막을 가져올 수 없습니다.");
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch("/api/analyze/video", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, transcript }),
     });
 
     let data: { id?: string; error?: string } = {};
@@ -237,10 +268,19 @@ function SearchTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
   async function handleAnalyze(video: Video) {
     setAnalyzingId(video.videoId);
+    let transcript: string;
+    try {
+      transcript = await fetchTranscriptClient(video.videoId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "자막을 가져올 수 없습니다.");
+      setAnalyzingId(null);
+      return;
+    }
+
     const res = await fetch("/api/analyze/video", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${video.videoId}` }),
+      body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${video.videoId}`, transcript }),
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error ?? "분석 중 오류가 발생했습니다."); setAnalyzingId(null); return; }

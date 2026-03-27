@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { url } = await request.json();
+  const { url, transcript: providedTranscript } = await request.json();
 
   if (!url) {
     return NextResponse.json({ error: "URL이 없습니다." }, { status: 400 });
@@ -31,14 +31,15 @@ export async function POST(request: NextRequest) {
   }
 
   let transcript: string;
-  try {
-    transcript = await fetchTranscript(videoId);
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json(
-      { error: `자막 오류: ${msg}` },
-      { status: 422 }
-    );
+  if (providedTranscript) {
+    transcript = providedTranscript;
+  } else {
+    try {
+      transcript = await fetchTranscript(videoId);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return NextResponse.json({ error: `자막 오류: ${msg}` }, { status: 422 });
+    }
   }
 
   if (!transcript.trim()) {
