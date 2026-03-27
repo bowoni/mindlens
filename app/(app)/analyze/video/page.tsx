@@ -5,27 +5,29 @@ import { useRouter } from "next/navigation";
 import RecentAnalysesSidebar from "@/components/recent-analyses-sidebar";
 
 async function fetchTranscriptClient(videoId: string): Promise<string> {
-  // Edge 함수에서 caption URL 획득 (Cloudflare IP, 브라우저 헤더로 YouTube 파싱)
-  const checkRes = await fetch(`/api/check/caption?videoId=${videoId}`);
-  const checkData = await checkRes.json() as { available: boolean; captionUrl: string | null };
-  if (!checkData.available || !checkData.captionUrl) throw new Error("자막이 없는 영상입니다.");
+  // YouTube timedtext 엔드포인트 직접 호출 (브라우저 → CORS 허용)
+  const candidates = [
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ko&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ko&kind=asr&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
+    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&kind=asr&fmt=json3`,
+  ];
 
-  // 브라우저에서 직접 YouTube CDN 자막 fetch (CORS 허용됨)
-  const captionRes = await fetch(checkData.captionUrl);
-  if (!captionRes.ok) throw new Error("자막을 가져올 수 없습니다.");
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json() as { events?: { segs?: { utf8?: string }[] }[] };
+      const text = (json.events ?? [])
+        .flatMap((e) => e.segs ?? [])
+        .map((s) => (s.utf8 ?? "").replace(/\n/g, " "))
+        .join(" ")
+        .trim();
+      if (text) return text;
+    } catch { continue; }
+  }
 
-  const json = await captionRes.json() as {
-    events?: { segs?: { utf8?: string }[] }[];
-  };
-
-  const text = (json.events ?? [])
-    .flatMap((e) => e.segs ?? [])
-    .map((s) => (s.utf8 ?? "").replace(/\n/g, " "))
-    .join(" ")
-    .trim();
-
-  if (!text) throw new Error("자막 내용이 없습니다.");
-  return text;
+  throw new Error("자막이 없는 영상입니다.");
 }
 
 type Video = {
@@ -102,9 +104,12 @@ function UrlTab({ router }: { router: ReturnType<typeof useRouter> }) {
     if (captionTimerRef.current) clearTimeout(captionTimerRef.current);
 
     captionTimerRef.current = setTimeout(async () => {
-      const res = await fetch(`/api/check/caption?videoId=${videoId}`);
-      const data = await res.json();
-      setCaptionStatus(data.available ? "available" : "unavailable");
+      try {
+        const transcript = await fetchTranscriptClient(videoId);
+        setCaptionStatus(transcript ? "available" : "unavailable");
+      } catch {
+        setCaptionStatus("unavailable");
+      }
     }, 600);
 
     return () => { if (captionTimerRef.current) clearTimeout(captionTimerRef.current); };
