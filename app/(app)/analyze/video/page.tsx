@@ -251,26 +251,19 @@ function SearchTab({ router }: { router: ReturnType<typeof useRouter> }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
     const q = keyword.trim();
-    if (!q) { setVideos([]); setError(null); return; }
-
+    if (!q) return;
     setLoading(true);
-    if (timerRef.current) clearTimeout(timerRef.current);
-
-    timerRef.current = setTimeout(async () => {
-      setError(null);
-      const res = await fetch(`/api/search/youtube?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "검색에 실패했습니다."); setVideos([]); }
-      else setVideos(data.videos ?? []);
-      setLoading(false);
-    }, 500);
-
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [keyword]);
+    setError(null);
+    const res = await fetch(`/api/search/youtube?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    if (!res.ok) { setError(data.error ?? "검색에 실패했습니다."); setVideos([]); }
+    else setVideos(data.videos ?? []);
+    setLoading(false);
+  }
 
   async function handleAnalyze(video: Video) {
     setAnalyzingId(video.videoId);
@@ -295,21 +288,27 @@ function SearchTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
   return (
     <div>
-      <div className="relative mb-6">
+      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
         <input
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="검색어를 입력하세요..."
-          className="w-full h-10 px-3 pr-9 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-shadow"
+          className="flex-1 h-10 px-3 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-shadow"
         />
-        {loading && (
-          <svg className="absolute right-3 top-3 w-4 h-4 animate-spin text-muted-foreground" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-          </svg>
-        )}
-      </div>
+        <button
+          type="submit"
+          disabled={!keyword.trim() || loading}
+          className="h-10 px-4 rounded-lg bg-accent hover:bg-(--accent-hover) disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center gap-1.5"
+        >
+          {loading ? (
+            <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+          ) : "검색"}
+        </button>
+      </form>
 
       {error && (
         <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2.5 mb-4">
