@@ -7,19 +7,31 @@ export async function GET(request: NextRequest) {
   if (!videoId) return NextResponse.json({ available: false, captionUrl: null });
 
   try {
-    const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    const res = await fetch("https://www.youtube.com/youtubei/v1/player", {
+      method: "POST",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Content-Type": "application/json",
+        "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+        "X-Youtube-Client-Name": "3",
+        "X-Youtube-Client-Version": "19.09.37",
       },
+      body: JSON.stringify({
+        videoId,
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: "19.09.37",
+            androidSdkVersion: 30,
+            hl: "en",
+            gl: "US",
+          },
+        },
+      }),
     });
 
-    const html = await pageRes.text();
-    const match = html.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;/);
-    if (!match) return NextResponse.json({ available: false, captionUrl: null });
+    if (!res.ok) return NextResponse.json({ available: false, captionUrl: null });
 
-    const playerResponse = JSON.parse(match[1]) as {
+    const data = await res.json() as {
       captions?: {
         playerCaptionsTracklistRenderer?: {
           captionTracks?: { languageCode: string; baseUrl: string }[];
@@ -27,7 +39,7 @@ export async function GET(request: NextRequest) {
       };
     };
 
-    const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
     if (tracks.length === 0) return NextResponse.json({ available: false, captionUrl: null });
 
     const track =
