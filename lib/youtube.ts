@@ -25,7 +25,7 @@ export function extractVideoId(url: string): string | null {
 }
 
 export async function fetchTranscript(videoId: string): Promise<string> {
-  const yt = await Innertube.create({ generate_session_locally: true });
+  const yt = await Innertube.create();
   const info = await yt.getInfo(videoId);
   const transcriptData = await info.getTranscript();
   const segments = transcriptData?.transcript?.content?.body?.initial_segments ?? [];
