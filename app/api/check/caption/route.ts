@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
       }),
     });
 
-    if (!res.ok) return NextResponse.json({ available: false, captionUrl: null });
+    if (!res.ok) {
+      return NextResponse.json({ available: false, captionUrl: null, debug: `player API status: ${res.status}` });
+    }
 
     const data = await res.json() as {
       captions?: {
@@ -37,10 +39,19 @@ export async function GET(request: NextRequest) {
           captionTracks?: { languageCode: string; baseUrl: string }[];
         };
       };
+      playabilityStatus?: { status: string; reason?: string };
     };
 
+    const playability = data?.playabilityStatus?.status;
     const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
-    if (tracks.length === 0) return NextResponse.json({ available: false, captionUrl: null });
+
+    if (tracks.length === 0) {
+      return NextResponse.json({
+        available: false,
+        captionUrl: null,
+        debug: `no tracks. playability: ${playability ?? "unknown"}`,
+      });
+    }
 
     const track =
       tracks.find((t) => t.languageCode === "ko") ||
@@ -48,7 +59,7 @@ export async function GET(request: NextRequest) {
       tracks[0];
 
     return NextResponse.json({ available: true, captionUrl: `${track.baseUrl}&fmt=json3` });
-  } catch {
-    return NextResponse.json({ available: false, captionUrl: null });
+  } catch (e) {
+    return NextResponse.json({ available: false, captionUrl: null, debug: `exception: ${String(e)}` });
   }
 }
