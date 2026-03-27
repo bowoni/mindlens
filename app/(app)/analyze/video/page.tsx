@@ -5,29 +5,28 @@ import { useRouter } from "next/navigation";
 import RecentAnalysesSidebar from "@/components/recent-analyses-sidebar";
 
 async function fetchTranscriptClient(videoId: string): Promise<string> {
-  // YouTube timedtext 엔드포인트 직접 호출 (브라우저 → CORS 허용)
-  const candidates = [
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ko&fmt=json3`,
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ko&kind=asr&fmt=json3`,
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=json3`,
-    `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&kind=asr&fmt=json3`,
-  ];
+  // 1. 서버에서 자막 URL 조회 및 서버측 fetch 시도
+  const res = await fetch(`/api/transcript?videoId=${encodeURIComponent(videoId)}`);
+  if (!res.ok) throw new Error("자막이 없는 영상입니다.");
 
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const json = await res.json() as { events?: { segs?: { utf8?: string }[] }[] };
-      const text = (json.events ?? [])
-        .flatMap((e) => e.segs ?? [])
-        .map((s) => (s.utf8 ?? "").replace(/\n/g, " "))
-        .join(" ")
-        .trim();
-      if (text) return text;
-    } catch { continue; }
-  }
+  const data = await res.json() as
+    | { source: "server"; transcript: string }
+    | { source: "fallback"; captionUrl: string };
 
-  throw new Error("자막이 없는 영상입니다.");
+  // 2. 서버에서 직접 가져온 경우
+  if (data.source === "server") return data.transcript;
+
+  // 3. 서버 fetch가 막힌 경우 → 브라우저에서 직접 timedtext URL 호출
+  const captionRes = await fetch(data.captionUrl);
+  if (!captionRes.ok) throw new Error("자막이 없는 영상입니다.");
+  const json = await captionRes.json() as { events?: { segs?: { utf8?: string }[] }[] };
+  const text = (json.events ?? [])
+    .flatMap((e) => e.segs ?? [])
+    .map((s) => (s.utf8 ?? "").replace(/\n/g, " "))
+    .join(" ")
+    .trim();
+  if (!text) throw new Error("자막이 없는 영상입니다.");
+  return text;
 }
 
 type Video = {
