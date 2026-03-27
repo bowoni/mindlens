@@ -67,6 +67,24 @@ function UrlTab({ router }: { router: ReturnType<typeof useRouter> }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captionStatus, setCaptionStatus] = useState<"idle" | "checking" | "available" | "unavailable">("idle");
+  const captionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const videoId = extractVideoId(url);
+    if (!videoId) { setCaptionStatus("idle"); return; }
+
+    setCaptionStatus("checking");
+    if (captionTimerRef.current) clearTimeout(captionTimerRef.current);
+
+    captionTimerRef.current = setTimeout(async () => {
+      const res = await fetch(`/api/check/caption?videoId=${videoId}`);
+      const data = await res.json();
+      setCaptionStatus(data.available ? "available" : "unavailable");
+    }, 600);
+
+    return () => { if (captionTimerRef.current) clearTimeout(captionTimerRef.current); };
+  }, [url]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,6 +113,8 @@ function UrlTab({ router }: { router: ReturnType<typeof useRouter> }) {
     router.push(`/analyze/video/${data.id}`);
   }
 
+  const videoId = extractVideoId(url);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
@@ -116,16 +136,45 @@ function UrlTab({ router }: { router: ReturnType<typeof useRouter> }) {
             붙여넣기
           </button>
         </div>
-        <p className="text-xs text-muted-foreground">
-          자막이 있는 영상만 분석 가능합니다. (youtube.com, youtu.be, Shorts 지원)
-        </p>
+
+        {/* 자막 상태 */}
+        {captionStatus === "checking" && (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            자막 확인 중...
+          </p>
+        )}
+        {captionStatus === "available" && (
+          <p className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+            자막이 확인되었습니다
+          </p>
+        )}
+        {captionStatus === "unavailable" && (
+          <p className="flex items-center gap-1.5 text-xs text-red-500">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            자막이 없는 영상입니다
+          </p>
+        )}
+        {captionStatus === "idle" && (
+          <p className="text-xs text-muted-foreground">
+            자막이 있는 영상만 분석 가능합니다. (youtube.com, youtu.be, Shorts 지원)
+          </p>
+        )}
       </div>
 
-      {url && (
+      {videoId && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="aspect-video w-full">
             <iframe
-              src={`https://www.youtube.com/embed/${extractVideoId(url)}`}
+              src={`https://www.youtube.com/embed/${videoId}`}
               className="w-full h-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -142,7 +191,7 @@ function UrlTab({ router }: { router: ReturnType<typeof useRouter> }) {
 
       <button
         type="submit"
-        disabled={!url || loading}
+        disabled={!url || loading || captionStatus !== "available"}
         className="w-full h-10 rounded-lg bg-accent hover:bg-(--accent-hover) disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex items-center justify-center gap-2"
       >
         {loading ? (

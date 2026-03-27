@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import AuthLayout from "@/components/auth-layout";
@@ -13,6 +13,22 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((v) => v - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  async function handleResend() {
+    setResending(true);
+    const supabase = createClient();
+    await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${location.origin}/auth/callback` } });
+    setResending(false);
+    setResendCooldown(60);
+  }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +66,14 @@ export default function SignupPage() {
             <span className="text-foreground font-medium">{email}</span>로 인증 링크를 보냈어요.
             <br />링크를 클릭하면 로그인됩니다.
           </p>
-          <Link href="/login" className="inline-block mt-6 text-sm text-accent hover:underline">
+          <button
+            onClick={handleResend}
+            disabled={resending || resendCooldown > 0}
+            className="mt-6 text-sm text-accent hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {resending ? "전송 중..." : resendCooldown > 0 ? `다시 보내기 (${resendCooldown}초)` : "인증 메일 다시 보내기"}
+          </button>
+          <Link href="/login" className="block mt-3 text-sm text-muted-foreground hover:underline">
             로그인 페이지로 돌아가기
           </Link>
         </div>

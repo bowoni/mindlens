@@ -1,4 +1,4 @@
-import { YoutubeTranscript } from "youtube-transcript";
+import { Innertube } from "youtubei.js";
 
 export function decodeHtmlEntities(text: string): string {
   return text
@@ -25,8 +25,14 @@ export function extractVideoId(url: string): string | null {
 }
 
 export async function fetchTranscript(videoId: string): Promise<string> {
-  const items = await YoutubeTranscript.fetchTranscript(videoId);
-  return items.map((item) => decodeHtmlEntities(item.text)).join(" ");
+  const yt = await Innertube.create();
+  const info = await yt.getInfo(videoId);
+  const transcriptData = await info.getTranscript();
+  const segments = transcriptData?.transcript?.content?.body?.initial_segments ?? [];
+  return segments
+    .map((seg: { snippet?: { text?: string } }) => decodeHtmlEntities(seg.snippet?.text ?? ""))
+    .join(" ")
+    .trim();
 }
 
 async function fetchByOrder(keyword: string, order: string, maxResults: number) {
@@ -37,6 +43,7 @@ async function fetchByOrder(keyword: string, order: string, maxResults: number) 
     type: "video",
     order,
     maxResults: String(maxResults),
+    videoCaption: "closedCaption",
     key: apiKey,
   });
 
@@ -44,17 +51,19 @@ async function fetchByOrder(keyword: string, order: string, maxResults: number) 
   if (!res.ok) return [];
 
   const data = await res.json();
-  return (data.items ?? []).map((item: Record<string, unknown>) => {
-    const snippet = item.snippet as Record<string, unknown>;
-    const id = item.id as Record<string, unknown>;
-    return {
-      videoId: id.videoId as string,
-      title: decodeHtmlEntities(snippet.title as string),
-      channelTitle: decodeHtmlEntities(snippet.channelTitle as string),
-      thumbnail: (snippet.thumbnails as Record<string, { url: string }>).medium?.url ?? "",
-      publishedAt: snippet.publishedAt as string,
-    };
-  });
+  return (data.items ?? [])
+    .map((item: Record<string, unknown>) => {
+      const snippet = item.snippet as Record<string, unknown>;
+      const id = item.id as Record<string, unknown>;
+      return {
+        videoId: id.videoId as string | undefined,
+        title: decodeHtmlEntities(snippet.title as string),
+        channelTitle: decodeHtmlEntities(snippet.channelTitle as string),
+        thumbnail: (snippet.thumbnails as Record<string, { url: string }>).medium?.url ?? "",
+        publishedAt: snippet.publishedAt as string,
+      };
+    })
+    .filter((v: { videoId: string | undefined; title: string; channelTitle: string; thumbnail: string; publishedAt: string }): v is { videoId: string; title: string; channelTitle: string; thumbnail: string; publishedAt: string } => !!v.videoId);
 }
 
 export async function searchVideos(keyword: string, maxResults = 5) {
