@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { analyzeDocument, generateSuggestedQuestions } from "@/lib/gemini";
 import { isUsageLimitExceeded } from "@/lib/usage";
 import { NextRequest, NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
+import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 
 export async function POST(request: NextRequest) {
@@ -53,11 +53,9 @@ export async function POST(request: NextRequest) {
   let pageCount: number | undefined;
 
   if (fileType === "pdf") {
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    const parsed = await parser.getText();
+    const parsed = await pdfParse(buffer);
     text = parsed.text;
-    pageCount = parsed.total;
-    await parser.destroy();
+    pageCount = parsed.numpages;
   } else {
     const result = await mammoth.extractRawText({ buffer });
     text = result.value;
