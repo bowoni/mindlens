@@ -33,9 +33,10 @@ export async function POST(request: NextRequest) {
   let transcript: string;
   try {
     transcript = await fetchTranscript(videoId);
-  } catch {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
-      { error: "자막을 가져올 수 없습니다. 자막이 없는 영상이거나 비공개 영상일 수 있습니다." },
+      { error: `자막 오류: ${msg}` },
       { status: 422 }
     );
   }

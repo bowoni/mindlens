@@ -25,14 +25,16 @@ export function extractVideoId(url: string): string | null {
 }
 
 export async function fetchTranscript(videoId: string): Promise<string> {
-  const yt = await Innertube.create();
+  const yt = await Innertube.create({ generate_session_locally: true });
   const info = await yt.getInfo(videoId);
   const transcriptData = await info.getTranscript();
   const segments = transcriptData?.transcript?.content?.body?.initial_segments ?? [];
-  return segments
+  const text = segments
     .map((seg: { snippet?: { text?: string } }) => decodeHtmlEntities(seg.snippet?.text ?? ""))
     .join(" ")
     .trim();
+  if (!text) throw new Error("transcript empty");
+  return text;
 }
 
 async function fetchByOrder(keyword: string, order: string, maxResults: number) {
