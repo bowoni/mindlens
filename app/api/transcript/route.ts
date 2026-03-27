@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCaptionUrl, fetchTranscriptFromUrl } from "@/lib/youtube-transcript";
 
 export async function GET(request: NextRequest) {
   const videoId = request.nextUrl.searchParams.get("videoId");
@@ -7,23 +6,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "videoId required" }, { status: 400 });
   }
 
-  // Step 1: Try to get caption URL via InnerTube (getInfo)
-  let captionUrl: string;
-  try {
-    captionUrl = await getCaptionUrl(videoId);
-  } catch (e) {
-    return NextResponse.json(
-      { error: `getCaptionUrl failed: ${e instanceof Error ? e.message : e}` },
-      { status: 422 }
-    );
+  const apiKey = process.env.SUPADATA_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "SUPADATA_API_KEY not configured" }, { status: 500 });
   }
 
-  // Step 2: Try to fetch transcript server-side from captionUrl
-  try {
-    const transcript = await fetchTranscriptFromUrl(captionUrl);
-    return NextResponse.json({ source: "server", transcript });
-  } catch {
-    // Server-side fetch of timedtext is blocked — return captionUrl for client to fetch
-    return NextResponse.json({ source: "fallback", captionUrl });
+  const res = await fetch(
+    `https://api.supadata.ai/v1/youtube/transcript?videoId=${encodeURIComponent(videoId)}&text=true`,
+    { headers: { "x-api-key": apiKey } }
+  );
+
+  if (!res.ok) {
+    return NextResponse.json({ error: "자막이 없는 영상입니다." }, { status: 422 });
   }
+
+  const data = await res.json() as { content?: string };
+  const transcript = data.content?.trim();
+  if (!transcript) {
+    return NextResponse.json({ error: "자막이 없는 영상입니다." }, { status: 422 });
+  }
+
+  return NextResponse.json({ transcript });
 }

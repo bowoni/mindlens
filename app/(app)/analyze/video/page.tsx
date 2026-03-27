@@ -5,28 +5,10 @@ import { useRouter } from "next/navigation";
 import RecentAnalysesSidebar from "@/components/recent-analyses-sidebar";
 
 async function fetchTranscriptClient(videoId: string): Promise<string> {
-  // 1. 서버에서 자막 URL 조회 및 서버측 fetch 시도
   const res = await fetch(`/api/transcript?videoId=${encodeURIComponent(videoId)}`);
-  if (!res.ok) throw new Error("자막이 없는 영상입니다.");
-
-  const data = await res.json() as
-    | { source: "server"; transcript: string }
-    | { source: "fallback"; captionUrl: string };
-
-  // 2. 서버에서 직접 가져온 경우
-  if (data.source === "server") return data.transcript;
-
-  // 3. 서버 fetch가 막힌 경우 → 브라우저에서 직접 timedtext URL 호출
-  const captionRes = await fetch(data.captionUrl);
-  if (!captionRes.ok) throw new Error("자막이 없는 영상입니다.");
-  const json = await captionRes.json() as { events?: { segs?: { utf8?: string }[] }[] };
-  const text = (json.events ?? [])
-    .flatMap((e) => e.segs ?? [])
-    .map((s) => (s.utf8 ?? "").replace(/\n/g, " "))
-    .join(" ")
-    .trim();
-  if (!text) throw new Error("자막이 없는 영상입니다.");
-  return text;
+  const data = await res.json() as { transcript?: string; error?: string };
+  if (!res.ok || !data.transcript) throw new Error(data.error ?? "자막이 없는 영상입니다.");
+  return data.transcript;
 }
 
 type Video = {
