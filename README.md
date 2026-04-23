@@ -1,6 +1,16 @@
 # MindLens
 > AI 기반 문서 · 영상 분석 및 비교 플랫폼
 
+<p align="center">
+  <img src="docs/images/hero-dashboard.png" alt="MindLens 대시보드" width="90%" />
+</p>
+
+<p align="center">
+  <img src="docs/images/hero-login.png" alt="MindLens 로그인" width="48%" />
+  &nbsp;
+  <img src="docs/images/hero-signup.png" alt="MindLens 회원가입" width="48%" />
+</p>
+
 <br>
 
 # 목차
@@ -29,7 +39,7 @@
 
 ### 1-1 개요
 > AI 기반 문서 · 영상 분석 및 비교 플랫폼
-- **개발기간** : 2026.02 ~ (진행중)
+- **개발기간** : 2026.03.12 – 03.27
 - **참여인원** : 1인 (개인 프로젝트)
 - **주요특징**
   - PDF / DOCX 문서와 YouTube 영상을 AI로 분석하여 핵심 요약 · 키워드 · 인사이트 제공
@@ -55,14 +65,17 @@
   - **배포** : Vercel
 
 - **외부 API**
-  - YouTube Data API v3 (영상 제목 · 업로드 날짜 · 메타데이터 조회)
-  - YouTube 자막 API (`youtube-transcript` 기반 자막 추출)
+  - YouTube Data API v3 (영상 제목 · 업로드 날짜 · 자막 유무 · 키워드 검색)
+  - Supadata API (YouTube 자막 텍스트 추출)
+  - Toss Payments API (결제 승인 확인)
 
 - **라이브러리**
-  - `youtube-transcript` (YouTube 자막 추출)
+  - `@google/generative-ai` (Google Gemini API SDK)
+  - `youtubei.js` (YouTube 자막 추출 — 클라이언트 대체 방식)
   - `pdf-parse` (PDF 텍스트 추출)
   - `mammoth` (DOCX 텍스트 추출)
   - `@tosspayments/tosspayments-sdk` (결제 SDK)
+  - `next-themes` (다크모드 테마 전환)
 
 ### 1-4 구동방법
 
@@ -86,7 +99,9 @@
 | `YOUTUBE_DATA_API_KEY` | YouTube Data API v3 키 | O |
 | `NEXT_PUBLIC_TOSS_CLIENT_KEY` | Toss Payments 클라이언트 키 | O |
 | `TOSS_SECRET_KEY` | Toss Payments 시크릿 키 | O |
+| `SUPADATA_API_KEY` | Supadata YouTube 자막 API 키 | O |
 | `STORAGE_BUCKET` | Supabase Storage 버킷명 | O |
+| `GEMINI_MAX_TEXT_CHARS` | Gemini 분석 최대 문자수 (기본: 30000) | X |
 | `FREE_ANALYSIS_LIMIT` | 무료 플랜 월 분석 횟수 (기본: 5) | X |
 | `NEXT_PUBLIC_MAX_FILE_SIZE_MB` | 업로드 최대 파일 크기 MB (기본: 20) | X |
 | `NEXT_PUBLIC_BASE_URL` | 배포 기본 URL (OG 메타데이터용) | X |
@@ -135,7 +150,9 @@ mindlens/
  │   │   └─ signup/page.tsx
  │   ├─ (app)/
  │   │   ├─ layout.tsx
- │   │   ├─ dashboard/page.tsx
+ │   │   ├─ dashboard/
+ │   │   │   ├─ page.tsx
+ │   │   │   └─ actions.ts
  │   │   ├─ analyze/
  │   │   │   ├─ document/page.tsx
  │   │   │   ├─ document/[id]/page.tsx
@@ -144,62 +161,101 @@ mindlens/
  │   │   ├─ compare/
  │   │   │   ├─ page.tsx
  │   │   │   └─ [id]/page.tsx
+ │   │   ├─ search/page.tsx
  │   │   ├─ team/
  │   │   │   ├─ page.tsx
  │   │   │   └─ settings/page.tsx
  │   │   └─ pricing/
- │   │       ├─ page.tsx          (서버 컴포넌트 — 플랜 fetch)
- │   │       ├─ pricing-client.tsx (클라이언트 컴포넌트 — UI)
+ │   │       ├─ page.tsx            (서버 컴포넌트 — 플랜 fetch)
+ │   │       ├─ pricing-client.tsx   (클라이언트 컴포넌트 — UI)
  │   │       └─ actions.ts
  │   ├─ api/
  │   │   ├─ analyze/
  │   │   │   ├─ document/route.ts
  │   │   │   └─ video/route.ts
+ │   │   ├─ transcript/route.ts      (Supadata 자막 추출)
+ │   │   ├─ check/caption/route.ts   (자막 유무 확인)
  │   │   ├─ compare/route.ts
  │   │   ├─ chat/route.ts
+ │   │   ├─ suggest-questions/route.ts
  │   │   ├─ search/youtube/route.ts
+ │   │   ├─ domains/route.ts
  │   │   ├─ payment/confirm/route.ts
  │   │   ├─ team/route.ts
  │   │   ├─ team/analyses/route.ts
  │   │   ├─ team/members/[id]/route.ts
  │   │   ├─ team/invite/route.ts
- │   │   └─ team/api-keys/route.ts
- │   ├─ layout.tsx               (메타데이터 · OG 설정)
- │   └─ opengraph-image.tsx      (동적 OG 이미지)
+ │   │   ├─ team/api-keys/route.ts
+ │   │   ├─ team/api-keys/[id]/route.ts
+ │   │   └─ v1/analyses/route.ts     (팀 공개 API)
+ │   ├─ auth/callback/route.ts       (OAuth 콜백)
+ │   ├─ payment/
+ │   │   ├─ success/page.tsx
+ │   │   └─ fail/page.tsx
+ │   ├─ share/[token]/page.tsx       (공유 링크 공개 뷰)
+ │   ├─ layout.tsx                   (메타데이터 · OG 설정)
+ │   └─ opengraph-image.tsx          (동적 OG 이미지)
  ├─ components/
  │   ├─ sidebar.tsx
  │   ├─ dashboard-grid.tsx
  │   ├─ analysis-chat.tsx
+ │   ├─ recent-analyses-sidebar.tsx
  │   ├─ new-analysis-button.tsx
+ │   ├─ export-button.tsx
+ │   ├─ share-button.tsx
+ │   ├─ related-videos.tsx
  │   ├─ social-auth-buttons.tsx
+ │   ├─ auth-layout.tsx
+ │   ├─ theme-provider.tsx
  │   ├─ theme-toggle.tsx
  │   └─ logo.tsx
  └─ lib/
      ├─ supabase/
      │   ├─ client.ts
-     │   └─ server.ts
+     │   ├─ server.ts
+     │   └─ service.ts
      ├─ gemini.ts
      ├─ youtube.ts
+     ├─ youtube-transcript.ts
      └─ usage.ts
 ```
 
 <br>
 
 ## 3-프로젝트 특징
+
+<p align="center">
+  <img src="docs/images/features.png" alt="MindLens 주요 기능 — 문서 분석 · 영상 분석 · 비교 분석 · 팀 대시보드" width="100%" />
+</p>
+
+<br>
+
 ### 3-1 문서 분석 (Document Analysis)
 - PDF / DOCX 파일 업로드 후 텍스트 추출 → Gemini 분석으로 핵심 요약 · 키워드 · 인사이트 제공
 - 도메인 특화 모드(계약서 / 논문 / 보고서 / 이력서 / 일반)로 맥락에 맞는 분석 결과 제공
 - 도메인별 프롬프트 지시문을 DB(`domain_configs`)에서 관리하여 코드 수정 없이 확장 가능
 - 스캔 이미지 PDF는 텍스트 추출 불가 안내
 
+<p align="center">
+  <img src="docs/images/feat-document.png" alt="문서 분석 — PDF/DOCX 업로드 및 도메인 모드 선택" width="90%" />
+</p>
+
 <br>
 
 ---
 
 ### 3-2 영상 분석 (Video Analysis)
-- YouTube URL 입력 → 자막 추출 → Gemini 분석으로 구간별 요약 · 핵심 포인트 제공
+- YouTube URL 입력 → Supadata API로 자막 추출 → Gemini 분석으로 구간별 요약 · 핵심 포인트 제공
 - YouTube Data API v3로 영상 제목 · 업로드 날짜 메타데이터 함께 저장
+- URL 입력 전 자막 유무 사전 확인 기능 (`contentDetails.caption` 활용)
 - 키워드 검색으로 관련 YouTube 영상 Top 5 추천 기능 제공
+- 분석 결과 기반 관련 영상 자동 추천
+
+<p align="center">
+  <img src="docs/images/feat-video-url.png" alt="영상 분석 — URL 입력 및 자막 확인" width="48%" />
+  &nbsp;
+  <img src="docs/images/feat-video-search.png" alt="영상 분석 — 키워드 검색" width="48%" />
+</p>
 
 <br>
 
@@ -209,6 +265,10 @@ mindlens/
 - 기존 분석 결과 2~3개를 선택하여 AI가 공통점 · 차이점 · 종합 인사이트 비교 분석
 - 문서 + 영상 교차 비교 지원
 - 비교 결과에서 각 콘텐츠를 [1][2][3] 형식으로 구분하여 제목 노출 없이 요약
+
+<p align="center">
+  <img src="docs/images/feat-compare.png" alt="비교 분석 — 2~3개 분석 선택 및 교차 비교" width="90%" />
+</p>
 
 <br>
 
@@ -236,14 +296,42 @@ mindlens/
 - 팀 공유 대시보드에서 즐겨찾기 · 페이지네이션 · 선택 삭제
 - 역할별 권한 제어: 삭제는 Admin 이상, 추가는 Member 이상, 조회는 전체
 
+<p align="center">
+  <img src="docs/images/feat-team.png" alt="팀 설정 — 팀원 초대, API 키 발급, 역할 관리" width="48%" />
+  &nbsp;
+  <img src="docs/images/feat-team-dashboard.png" alt="팀 대시보드 — 팀 공유 분석, 즐겨찾기" width="48%" />
+</p>
+
 <br>
 
 ---
 
-### 3-7 요금제 및 결제 (Pricing)
+### 3-7 내보내기 및 공유 (Export & Share)
+- 분석 결과를 PDF 또는 Markdown 파일로 다운로드
+- 공유 링크 생성 시 `share_token` 발급 → 로그인 없이 `/share/[token]`에서 열람 가능
+- 공유 링크 해제로 외부 접근 즉시 차단
+
+<br>
+
+---
+
+### 3-8 팀 API (Team API)
+- Team 플랜에서 API 키 발급 · 관리 (SHA-256 해시 저장)
+- Bearer 토큰 인증 방식의 공개 API (`/api/v1/analyses`)로 팀 분석 결과 외부 조회
+- 타입 필터링 · 페이지네이션(limit/offset) 지원
+
+<br>
+
+---
+
+### 3-9 요금제 및 결제 (Pricing)
 - 무료 / Pro(₩9,900) / Team(₩29,900) 3단계 플랜
 - Toss Payments 카드 결제 연동
 - 다운그레이드 시 현재 결제 기간 유지 후 만료 시 자동 전환
+
+<p align="center">
+  <img src="docs/images/feat-pricing.png" alt="요금제 — 무료 / Pro / Team 3단계 플랜" width="90%" />
+</p>
 
 ```ts
 // 결제 기간 만료 시 lazy cleanup (layout.tsx)
@@ -316,20 +404,23 @@ if (!isExpired && (sub?.plan === "pro" || sub?.plan === "team")) return false;
 
 ### 4-4 [Feature 4] YouTube API 연동
 
-> YouTube Data API v3 + youtube-transcript 기반 영상 정보 수집
-- YouTube URL에서 영상 ID 추출 후 `youtube-transcript`로 자막 텍스트 수집
+> YouTube Data API v3 + Supadata API 기반 영상 정보 수집
+- YouTube URL에서 영상 ID 추출 후 Supadata API(`/api/transcript`)로 자막 텍스트 수집
+- 기존 `youtube-transcript` 라이브러리 사용 시 서버 환경에서 간헐적 실패 발생 → Supadata API로 대체
+- 클라이언트 대체 방식으로 `youtubei.js` 기반 자막 추출도 구현 (`lib/youtube-transcript.ts`)
 - YouTube Data API v3 `videos?part=snippet` 엔드포인트로 영상 제목 · 업로드 날짜 조회
+- `videos?part=contentDetails`로 자막 유무 사전 확인 후 사용자에게 안내
 - 자막이 없거나 비공개 영상일 경우 `422` 응답으로 사용자에게 안내
 - 키워드 검색은 `search?part=snippet&type=video` 엔드포인트로 관련 영상 Top 5 반환
 
 ```ts
-// 영상 메타데이터 조회 (video/route.ts)
-const metaRes = await fetch(
-  `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${apiKey}`
+// Supadata API로 자막 추출 (transcript/route.ts)
+const res = await fetch(
+  `https://api.supadata.ai/v1/youtube/transcript?videoId=${encodeURIComponent(videoId)}&text=true`,
+  { headers: { "x-api-key": apiKey } }
 );
-const snippet = meta.items?.[0]?.snippet;
-videoTitle = decodeHtmlEntities(snippet.title ?? videoId);
-videoPublishedAt = snippet.publishedAt ?? null;
+const data = await res.json() as { content?: string };
+const transcript = data.content?.trim();
 ```
 
 <br>
@@ -400,14 +491,13 @@ export async function isUsageLimitExceeded(supabase, userId): Promise<boolean> {
 
 ### 5-2 그 외 항목
 
-1) 추가 예정 기능
-- [ ] Redis 캐시 도입으로 Gemini API 중복 호출 최적화
+1) 완료된 기능
 - [x] 콘텐츠 연결 추천 (분석한 문서 관련 YouTube 자동 추천)
 - [x] 분석 결과 내보내기 (PDF / Markdown 다운로드)
 - [x] 공유 링크 생성 및 해제
+- [x] 팀 API 키 발급 및 공개 API (`/api/v1/analyses`)
+- [x] YouTube 자막 추출 Supadata API로 전환 (서버 안정성 개선)
+- [x] 자막 유무 사전 확인 기능 (`contentDetails.caption`)
 
-2) 테스트
-- [ ] API Route 단위 테스트
-- [ ] 결제 플로우 E2E 테스트
 
 <br>

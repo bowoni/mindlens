@@ -26,8 +26,9 @@ export default function AnalysisChat({ analysisId, suggestedQuestions: initialSu
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ analysisId }),
         })
-          .then((r) => r.json())
-          .then(({ questions }) => setSuggestions(questions ?? []));
+          .then((r) => (r.ok ? r.json() : { questions: [] }))
+          .then(({ questions }) => setSuggestions(questions ?? []))
+          .catch(() => setSuggestions([]));
       }
     }
   }, [open, messages, analysisId, suggestionsLoaded]);

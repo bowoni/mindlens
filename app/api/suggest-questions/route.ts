@@ -28,10 +28,9 @@ export async function POST(request: NextRequest) {
 분석 제목: ${analysis.title}
 분석 내용: ${JSON.stringify(analysis.content)}`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
-
   try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
     const match = text.match(/\[[\s\S]*\]/);
     const questions: string[] = match ? JSON.parse(match[0]) : [];
     return Response.json({ questions: questions.slice(0, 3) });
